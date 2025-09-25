@@ -6,7 +6,6 @@ use rand::{
     distributions::{Distribution, Uniform},
     seq::IteratorRandom,
 };
-use solana_program::pubkey;
 
 // Now, we only support up to 8 authorities between [0, 1, 2, 3, 4, 5, 6, 7]. To create more authorities, we need to
 // add them in the monorepo. We can use from 0 up to 255 in order to prevent hot accounts.
@@ -53,35 +52,63 @@ pub fn find_jupiter_open_orders(market: &Pubkey, authority: &Pubkey) -> Pubkey {
     .0
 }
 
-// Temporarily redefined it until solution is found
+// Temporarily redefined it until solution is found  
 pub mod jupiter_override {
-    use anchor_lang::InstructionData;
     use anchor_lang::{prelude::*, Discriminator};
-    use jupiter_amm_interface::Swap as InterfaceSwap;
 
-    #[derive(AnchorSerialize, Debug)]
+    // fn q(){
+    //     let q =
+    // }
+
+    // #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
+    // pub enum SwapDummy {}
+    #[derive(Debug, Clone)]
     pub struct RoutePlanStep {
-        pub swap: InterfaceSwap,
+        pub swap: super::typedefs::Swap,
+        // pub swap: SwapDummy,
         pub percent: u8,
         pub input_index: u8,
         pub output_index: u8,
     }
 
-    #[derive(AnchorSerialize)]
+    impl AnchorSerialize for RoutePlanStep {
+        fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+            self.percent.serialize(writer)?;
+            self.input_index.serialize(writer)?;
+            self.output_index.serialize(writer)?;
+            Ok(())
+        }
+    }
+
+    impl AnchorDeserialize for RoutePlanStep {
+        fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
+            // Read and skip the swap field
+            let _swap = super::typedefs::Swap::deserialize_reader(reader)?;
+            let percent = u8::deserialize_reader(reader)?;
+            let input_index = u8::deserialize_reader(reader)?;
+            let output_index = u8::deserialize_reader(reader)?;
+            Ok(Self {
+                swap: Default::default(),
+                percent,
+                input_index,
+                output_index,
+            })
+        }
+    }
+
+    #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
     pub struct Route {
-        pub route_plan: Vec<RoutePlanStep>,
+        // pub route_plan: Vec<RoutePlanStep>,
         pub in_amount: u64,
         pub quoted_out_amount: u64,
         pub slippage_bps: u16,
         pub platform_fee_bps: u8,
     }
     impl Discriminator for Route {
-        const DISCRIMINATOR: [u8; 8] = super::instruction::Route::DISCRIMINATOR;
+        const DISCRIMINATOR: &'static [u8] = super::instruction::Route::DISCRIMINATOR;
     }
 
-    impl InstructionData for Route {}
 
-    #[derive(AnchorSerialize)]
     pub struct RouteWithTokenLedger {
         pub route_plan: Vec<RoutePlanStep>,
         pub quoted_out_amount: u64,
@@ -89,12 +116,10 @@ pub mod jupiter_override {
         pub platform_fee_bps: u8,
     }
     impl Discriminator for RouteWithTokenLedger {
-        const DISCRIMINATOR: [u8; 8] = super::instruction::RouteWithTokenLedger::DISCRIMINATOR;
+        const DISCRIMINATOR: &'static [u8] = super::instruction::RouteWithTokenLedger::DISCRIMINATOR;
     }
 
-    impl InstructionData for RouteWithTokenLedger {}
 
-    #[derive(AnchorSerialize)]
     pub struct SharedAccountsRoute {
         pub id: u8,
         pub route_plan: Vec<RoutePlanStep>,
@@ -104,12 +129,10 @@ pub mod jupiter_override {
         pub platform_fee_bps: u8,
     }
     impl Discriminator for SharedAccountsRoute {
-        const DISCRIMINATOR: [u8; 8] = super::instruction::SharedAccountsRoute::DISCRIMINATOR;
+        const DISCRIMINATOR: &'static [u8] = super::instruction::SharedAccountsRoute::DISCRIMINATOR;
     }
 
-    impl InstructionData for SharedAccountsRoute {}
 
-    #[derive(AnchorSerialize)]
     pub struct SharedAccountsRouteWithTokenLedger {
         pub id: u8,
         pub route_plan: Vec<RoutePlanStep>,
@@ -118,9 +141,7 @@ pub mod jupiter_override {
         pub platform_fee_bps: u8,
     }
     impl Discriminator for SharedAccountsRouteWithTokenLedger {
-        const DISCRIMINATOR: [u8; 8] =
-            super::instruction::SharedAccountsRouteWithTokenLedger::DISCRIMINATOR;
+        const DISCRIMINATOR: &'static [u8] = super::instruction::SharedAccountsRouteWithTokenLedger::DISCRIMINATOR;
     }
 
-    impl InstructionData for SharedAccountsRouteWithTokenLedger {}
 }
